@@ -81,10 +81,17 @@ def destination_crud(request):
         action = data.get('action')
         jsondata = data.get('data')
         if (action == 'CREATE'):
+            VALID_HTTP_METHODS = ['GET', 'POST', 'PUT']
+            if jsondata.get("http_method") not in VALID_HTTP_METHODS:
+                error_obj = {}
+                error_obj['status'] = "Falied"
+                error_obj['message'] =  f"{jsondata.get('http_method')} is not a valid HTTP method. Allowed methods are: {', '.join(VALID_HTTP_METHODS)}"
+                return HttpResponse(json.dumps(error_obj, indent=4), content_type='application/json')
             if not jsondata.get('id') is None:
-                id=jsondata.pop('key', None)
-                profile_u = Destination.objects.get(id=id).update(**jsondata)
-                serializer = DestinationSerializer(profile_u)
+                id=jsondata.pop('id', None)
+                Destination.objects.get(id=id).update(**jsondata)
+                destination_u = Account.objects.get(id=id)
+                serializer = DestinationSerializer(destination_u)
                 serializer_data = {"data": serializer.data}
             else:
                 profile_c = Destination.objects.create(**jsondata)
