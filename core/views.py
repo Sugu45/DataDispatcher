@@ -139,13 +139,18 @@ def get_destinations(request, account_id):
     serializer = DestinationSerializer(destinations, many=True)
     return Response(serializer.data)
 
-@api_view(['POST'])
+@api_view(['POST','GET'])
 def incoming_data(request):
     try:
         secret_token = request.headers.get('CL-X-TOKEN')
         if not secret_token:
             return Response({'error': 'Un Authenticate'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        if request.method == 'POST':
+            if not request.data or not isinstance(request.data, dict):
+                return Response({"error": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
+        if request.method == 'GET':
+            if not request.query_params or not isinstance(request.query_params.dict(), dict):
+                return Response({"error": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             account = Account.objects.get(app_secret_token=secret_token)
         except Account.DoesNotExist:
