@@ -4,8 +4,7 @@ import traceback
 
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
-from rest_framework.response import Response
+from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework import status
 from .models import Account, Destination
@@ -59,7 +58,7 @@ def account_crud(request):
                 'total_pages': paginator.num_pages,
                 'total_items': paginator.count
             }
-            return HttpResponse(json.dumps(data))
+            return HttpResponse(json.dumps(data),content_type='application/json')
         elif action == 'DELETE':
             profile_d = Account.objects.filter(id=jsondata.get('id')).delete()
             return HttpResponse(json.dumps({'message': 'Account deleted'}))
@@ -142,26 +141,26 @@ def get_destinations(request, account_id):
     try:
         destinations = Destination.objects.filter(account__account_id=account_id)
     except Account.DoesNotExist:
-        return Response({'error': 'Account not found'}, status=status.HTTP_404_NOT_FOUND)
+        return HttpResponse(json.dumps({'error': 'Account not found'}),  content_type='application/json',status=status.HTTP_404_NOT_FOUND)
     serializer = DestinationSerializer(destinations, many=True)
-    return Response(serializer.data)
+    return HttpResponse(json.dumps(serializer.data) ,content_type='application/json')
 
 @api_view(['POST','GET'])
 def incoming_data(request):
     try:
         secret_token = request.headers.get('CL-X-TOKEN')
         if not secret_token:
-            return Response({'error': 'Un Authenticate'}, status=status.HTTP_401_UNAUTHORIZED)
+            return HttpResponse(json.dumps({'error': 'Un Authenticate'}), status=status.HTTP_401_UNAUTHORIZED)
         if request.method == 'POST':
             if not request.data or not isinstance(request.data, dict):
-                return Response({"error": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
+                return HttpResponse(json.dumps({"error": "Invalid Data"}),content_type='application/json',status=status.HTTP_400_BAD_REQUEST)
         if request.method == 'GET':
             if not request.query_params or not isinstance(request.query_params.dict(), dict):
-                return Response({"error": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
+                return HttpResponse(json.dumps({"error": "Invalid Data"}),content_type='application/json', status=status.HTTP_400_BAD_REQUEST)
         try:
             account = Account.objects.get(app_secret_token=secret_token)
         except Account.DoesNotExist:
-            return Response({'error': 'Un Authenticate'}, status=status.HTTP_401_UNAUTHORIZED)
+            return HttpResponse(json.dumps({'error': 'Un Authenticate'}),content_type='application/json', status=status.HTTP_401_UNAUTHORIZED)
 
         for destination in account.destinations.all():
             headers = destination.headers
@@ -172,7 +171,7 @@ def incoming_data(request):
             elif destination.http_method.upper() == 'PUT':
                 response = requests.put(destination.url, json=request.data, headers=headers)
 
-        return Response({'message': 'Data sent to destinations'}, status=status.HTTP_200_OK)
+        return HttpResponse(json.dumps({'message': 'Data sent to destinations'}), content_type='application/json',status=status.HTTP_200_OK)
     except Exception as excep:
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
